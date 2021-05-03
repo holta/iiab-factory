@@ -14,6 +14,13 @@ if [ ! -f $1 ];then
    exit 1
 fi
 
+# for use in jupyter notebook, do not overwrite any tree contents
+contents=$(ls $2/tree|wc -l)
+if [ $contents -ne 0 ];then
+    echo "The $2/tree is not empty. Delete if you want to repeat this step."
+    exit 0
+fi
+
 # Delete the previous contents of zims
 rm -rf $2/tree
 # Make directory
