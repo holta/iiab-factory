@@ -49,6 +49,12 @@ FLAGDIR=/etc/iiab/install-flags
 APTPATH=/usr/bin    # Avoids problematic /usr/local/bin/apt on Linux Mint
 reboot_needed=false
 
+# Detect if we are in a chroot or container (to avoid reboots, etc)
+IS_CHROOT=false
+if ischroot -t 2>/dev/null || systemd-detect-virt --container -q 2>/dev/null; then
+    IS_CHROOT=true
+fi
+
 FAST=false    # YOUR OWN RISK: Fewer security & user education prompts.
 MFABT=false   # As above BUT bypasses editing of local_vars.yml + apt updates.
 # When you have no time to read the MFABT book: "Move Fast and Break Things:
@@ -513,7 +519,7 @@ if ! $($MFABT); then
     bootDirLastModFile=$(date -r "/boot/$(ls -t /boot | head -1)" +%s) # 1970-01-01
     # Works w/o RTC (real-time clock, i.e. battery) because:
     # Both 'apt' installs to /boot and IIAB installs require Internet (e.g. NTP).
-    if (( bootupTime < bootDirLastModFile )) || $($reboot_needed); then
+    if ! $IS_CHROOT && { (( bootupTime < bootDirLastModFile )) || $($reboot_needed); }; then
         reboot
         exit 0    # Nec to avoid bogus continuation & misleading output below
     fi
@@ -633,7 +639,7 @@ fi
 # OLD WAY ABOVE - fails w/ sev ISPs per https://github.com/iiab/iiab/issues/871
 
 # K. Start BitTorrent downloads, e.g. if /etc/iiab/local_vars.yml requested any
-if $(systemctl -q is-active transmission-daemon) && ! $(ischroot -t); then
+if $(systemctl -q is-active transmission-daemon) && ! $IS_CHROOT; then
     echo -e "\n\nSTARTING BITTORRENT DOWNLOAD(S) for KA Lite...Please Monitor: http://box:9091\n"
     transmission-remote -n Admin:changeme -t all --start
 fi
@@ -680,7 +686,7 @@ echo -e "global community, learning from other initiatives in your region and be
 #echo -e "(over Wi-Fi anyway) until you later run 'iiab-hotspot-off'.  CAVEAT: these"
 #echo -e "two commands only work with Raspberry Pi as of 2019-09-30.\n"
 
-if ! $(ischroot -t); then
+if ! $IS_CHROOT; then
     echo -ne "HIT [Enter] TO REBOOT, CONFIRMING YOU'VE" '"photographed" THE ABOVE PARAGRAPHS: '
     read ans < /dev/tty
 
